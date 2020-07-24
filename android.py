@@ -114,8 +114,7 @@ def WriteCustomRules(N, f):
 				f.write("cp %s $deploy-bin/%s/lib%s.so && " % (N.GetTargetName(cfg, arch), GetABIFolder(arch), N.target))
 			f.write("pushd $outdir/android-project && ")
 			f.write("./gradlew installDebug && ")
-			f.write("popd && ")
-			f.write("touch $out\n\n")
+			f.write("popd \n\n")
 
 
 	for cfg_name in N.configs:
