@@ -1,0 +1,15 @@
+rule cxx_%%
+  command = $cxx /FS /showIncludes /c $in /Fo$out $cflags_%% $includepath_%%
+  description = CXX $out
+  depfile = $out.d
+  deps = msvc
+
+rule c_%%
+  command = $cxx /FS /showIncludes /c $in /Fo$out $cflags_%% $includepath_%%
+  description = CXX $out
+  depfile = $out.d
+  deps = msvc
+
+rule link_%%
+  command = $link $ldflags_%% /OUT:$out $in $libs
+  description = LINK $out

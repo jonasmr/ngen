@@ -1,0 +1,58 @@
+.android_app android-test-0
+.android_package com.androidtest.zero11222
+
+
+cflags.armv7 -march=armv7-a -mthumb
+
+
+cflags.armv7 --target=armv7-none-%android_host_platform%-androideabi24
+cflags.aarch64 --target=aarch64-none-%android_host_platform%-android24
+cflags.x86 --target=i686-none-%android_host_platform%-android24
+cflags.x86_64 --target=x86_64-none-%android_host_platform%-android24
+
+
+ldflags.armv7 --target=armv7-none-%android_host_platform%-androideabi24
+ldflags.aarch64 --target=aarch64-none-%android_host_platform%-android24
+ldflags.x86 --target=i686-none-%android_host_platform%-android24
+ldflags.x86_64 --target=x86_64-none-%android_host_platform%-android24
+
+cflags $android_toolchain_args
+ldflags $android_toolchain_args
+
+
+
+
+cflags -D%target%_EXPORTS
+cflags -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables 
+cflags -fstack-protector-strong -no-canonical-prefixes 
+cflags -D_FORTIFY_SOURCE=2 
+
+cflags -Wformat -Werror=format-security 
+cflags -Wno-delete-non-virtual-dtor 
+cflags -DVK_USE_PLATFORM_ANDROID_KHR 
+cflags -fno-limit-debug-info  
+cflags -fPIC 
+
+cflags.debug -O0 
+cflags.release -O2 
+
+cxxflags -std=c++11 -Werror -Wno-unused-variable 
+
+
+ldflags -fPIC -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes 
+ldflags -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security
+ldflags -std=c++11 -Werror -Wno-unused-variable -Wno-delete-non-virtual-dtor -DVK_USE_PLATFORM_ANDROID_KHR 
+ldflags -O0 -fno-limit-debug-info
+ldflags -Wl,--exclude-libs,libgcc_real.a 
+ldflags -Wl,--exclude-libs,libatomic.a -static-libstdc++ 
+ldflags -Wl,--build-id -Wl,--fatal-warnings 
+ldflags -Wl,--exclude-libs,libunwind.a -Wl,--no-undefined 
+ldflags -Qunused-arguments 
+ldflags -Wl,--no-warn-mismatch 
+ldflags -u ANativeActivity_onCreate 
+
+ldflags -shared -Wl,-soname,lib%target%.so 
+
+ldflags -llog -landroid -latomic -lm 
+
+
