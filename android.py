@@ -38,9 +38,9 @@ def ExecuteActions(N):
 		return False #just continue
 	return False
 
-def UpdateAndroidVersion(N):	
+def UpdateAndroidVersion(N):
 	N.android_sdk = "%sndk/%s" % (N.android_sdk_root, N.android_version)
-	N.android_toolchain = N.android_sdk + "/toolchains/llvm/prebuilt/darwin-x86_64"
+	N.android_toolchain = N.android_sdk + "/toolchains/llvm/prebuilt/%s" % N.android_llvm_platform
 	N.android_bin = N.android_toolchain + "/bin"
 
 def Init(N):
@@ -48,8 +48,14 @@ def Init(N):
 	N.archs = {"armv7":{},"aarch64":{},"x86":{},"x86_64":{}}
 	N.android_version = "21.0.6113669"
 	N.android_host_platform = "linux"
+	if N.host_platform == "linux":
+		N.android_llvm_platform = "linux-x86_64"
+	elif N.host_platform == "osx":
+		N.android_llvm_platform = "darwin-x86_64"
+	else:
+		print("please fix platform")
 	UpdateAndroidVersion(N)
-	
+
 
 def PreMerge(N):
 	UpdateAndroidVersion(N)
@@ -102,7 +108,7 @@ def WriteCustomRules(N, f):
 	f.write("deploy-bin = $outdir/android-project/app/src/main/jniLibs\n\n")
 	archs = N.archs
 	if len(archs) == 0:
-		archs = {"":""}	
+		archs = {"":""}
 	for cfg_name in N.configs:
 		if cfg_name != "__default":
 			cfg = N.configs[cfg_name];
@@ -112,9 +118,9 @@ def WriteCustomRules(N, f):
 				target_name = N.GetTargetName(cfg, arch)
 				f.write("mkdir -p $deploy-bin/%s/ && " % (GetABIFolder(arch)))
 				f.write("cp %s $deploy-bin/%s/lib%s.so && " % (N.GetTargetName(cfg, arch), GetABIFolder(arch), N.target))
-			f.write("pushd $outdir/android-project && ")
-			f.write("./gradlew installDebug && ")
-			f.write("popd \n\n")
+			f.write("cd $outdir/android-project && ")
+			f.write("./gradlew installDebug")
+			f.write("\n\n")
 
 
 	for cfg_name in N.configs:
@@ -127,7 +133,7 @@ def WriteCustomRules(N, f):
 			f.write("\n")
 
 	f.write("\n")
-	
+
 	for cfg_name in N.configs:
 		if cfg_name != "__default":
 			cfg = N.configs[cfg_name];
