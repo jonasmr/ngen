@@ -14,6 +14,12 @@ rule asm_%%
   command = as $in -o $out
   description = ASM $out
 
+rule mxx_%%
+  command = $cxx -MMD -MT $out -MF $out.d $cflags_%% $includepath_%% $mmflags_%% -c $in -o $out
+  description = CXX $out
+  depfile = $out.d
+  deps = gcc
+
 rule link_%%
   command = $cxx $ldflags_%% -o $out $in $libs
   description = LINK $out
