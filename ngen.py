@@ -19,6 +19,19 @@ import argparse
 
 DEFAULT_NAME = "___default_config"
 
+def SuffixFixup(suffix):
+	if suffix != "":
+		return "_%s" % suffix
+	return suffix
+
+
+def MergeSuffix(suffix, parent_suffix):
+	if parent_suffix != "":
+		return "%s_%s" % (parent_suffix, suffix)
+	else:
+		return suffix
+
+
 class Config:
 	def __init__(C, name, parent, is_target):
 		C.extension = ""
@@ -44,6 +57,12 @@ class Config:
 		C.level = 999 if is_target else -1
 		C.suffix = ""
 
+	def AddDefaultParams(C):
+		C.paramz["cflags"] = "";
+		C.paramz["includepath"] = "";
+		C.paramz["ldflags"] = "";
+		C.paramz["libpath"] = "";
+
 
 class NGen:
 	def __init__(N):
@@ -56,6 +75,8 @@ class NGen:
 		N.active_alias = []
 		N.alias = {}
 		N.target_config = ""
+		N.current_target = ""
+		N.target_active = False
 
 		N.modules["win32"] = win32
 		N.modules["linux"] = linux
@@ -68,6 +89,7 @@ class NGen:
 		N.g_include_prefix="-I"
 		N.obj_extension = ".o"
 		N.configs[DEFAULT_NAME] = Config(DEFAULT_NAME, "", False)
+		N.configs[DEFAULT_NAME].AddDefaultParams();
 
 		pathname = os.path.dirname(sys.argv[0])        
 		N.code_path = os.path.abspath(pathname)
@@ -116,6 +138,11 @@ class NGen:
 
 
 	def GetConfig(N, s):
+		if N.target_active:
+			if s != "":
+				print("Cant specify subconfig inside target %s" % s)
+				exit(1)
+			return N.configs[N.current_target]
 		if s == "":
 			s = DEFAULT_NAME;
 		return N.configs[s];
@@ -130,7 +157,7 @@ class NGen:
 			remaining = 0
 			for cfg_name in N.configs:
 				cfg = N.configs[cfg_name]
-				if cfg_name != DEFAULT_NAME and ~cfg.is_target:
+				if cfg_name != DEFAULT_NAME and not cfg.is_target:
 					parent_cfg = N.configs[cfg.parent]
 					if parent_cfg.level >= 0:
 						N.configs_ordered.append(cfg_name)
@@ -143,10 +170,7 @@ class NGen:
 						cfg.objs = cfg.objs | default.objs
 						cfg.metals = cfg.metals | default.metals
 						cfg.objraw = cfg.objraw | default.objraw
-						if parent_cfg.suffix != "":
-							cfg.suffix = "%s_%s" % (parent_cfg.suffix, cfg_name)
-						else:
-							cfg.suffix = "_%s" % cfg_name
+						cfg.suffix = MergeSuffix(cfg_name, parent_cfg.suffix)
 					else:
 						remaining += 1
 
@@ -222,7 +246,7 @@ class NGen:
 		return command, platform, config, arch
 
 	def PlatformMatch(N, p):
-		return (not p in N.platforms) or p == "" or p == N.active_platform or p in N.active_alias
+		return N.target_active or ((not p in N.platforms) or p == "" or p == N.active_platform or p in N.active_alias)
 	
 
 	def ProcessFile1(N, p):
@@ -379,12 +403,14 @@ class NGen:
 					print( "%s:%d : %s  CC %s" %(filename, line_idx, line, command))
 				command, platform, config, arch = N.SplitCommand3(command);
 				cfg = N.GetConfig(config)
+				is_target = cfg.is_target
 				print(" COMMAND ('%s' '%s' '%s' '%s') --> %s" % (command, platform, config, arch, arg))
 				if IsCommand:
 					if command == "break":
 						print("BREAK!\n")
 						exit(1)
 					elif command == "ngen":
+						assert not is_target
 						if N.PlatformMatch(platform):
 							print("recursive ngen %s !!!\n" %(arg))
 							if os.path.isfile(arg):
@@ -392,20 +418,18 @@ class NGen:
 							else:
 								print("file was not found!\n")
 					elif command == "tempdir":
+						assert not is_target
 						N.tempdir = os.path.abspath(arg)
 						print("tempdir is now " + N.tempdir);
 					elif command == "outdir":
+						assert not is_target
 						N.outdir = os.path.abspath(arg)
 					elif command == "config":
+						assert not is_target
 						parent = ""
 						if(len(args)>1):
 							parent = args[1];
-							print("GOT PARENT")
-							print("GOT PARENT")
-							print("GOT PARENT")
-							print("GOT PARENT")
-							print("GOT PARENT")
-						N.configs[args[0]] = Config(arg[0], parent, False)
+						N.configs[args[0]] = Config(args[0], parent, False)
 						if N.default_config == "":
 							N.default_config = arg
 							print("default config is now " + N.default_config)
@@ -416,15 +440,24 @@ class NGen:
 						if N.PlatformMatch(platform):
 							N.ProcessFile(arg, cfg)
 					elif(command == "target"):
+						assert not is_target
+
 						target_name = arg.strip()
 						if hasattr(N.configs, target_name):
 							print("already has attr " + target_name)
 						N.configs[target_name] = Config(target_name, "", True)
+						N.current_target = target_name
+						N.target_active = True
 						N.all_targets.append(target_name)
 						if N.target_config == "":
 							N.target_config = target_name
+					elif command == "end":
+						assert N.target_active
+						N.current_target = ""
+						N.target_active = False
 
 					elif command == "platform-alias":
+						assert not is_target
 						argsplit = arg.split()
 						N.PlatformAlias(argsplit[0],argsplit[1:])
 					elif N.active_module.HandleCommand(N, command, arg, cfg):
@@ -487,28 +520,33 @@ class NGen:
 				f.write("# CFG: %s\n" % cfg_name)
 				cfg = N.configs[cfg_name]
 				parent_cfg = N.configs[cfg.parent]
-				suffix = cfg.suffix
-				parent_suffix = parent_cfg.suffix
+				suffix = SuffixFixup(cfg.suffix)
+				parent_suffix = SuffixFixup(parent_cfg.suffix)
 				for key in cfg.paramz.keys() | parent_cfg.paramz.keys():
-					if ~key in cfg.paramz:
-						cfg.paramz.add(key, "")
-					value = cfg.paramz.get(key)
+					value = ""
+					if key in cfg.paramz.keys():
+						value = cfg.paramz.get(key)
+					else:
+						cfg.paramz[key] = ""
 					k = key.strip()
 					f.write("%s%s = $%s%s %s\n" % (k, suffix, k, parent_suffix, value.strip()))
 
 				f.write("\n\n")	
+
 			for target_name in N.all_targets:
 				cfg = N.configs[target_name]
 				for parent_cfg in cfg.target_configs:
 					parent_cfg = N.configs[parent_cfg]
-					parent_suffix = parent_cfg.suffix
-					suffix = "%s_%s" %(parent_suffix, target_name)
+					parent_suffix = SuffixFixup(parent_cfg.suffix)
+					suffix = SuffixFixup("%s_%s" %(parent_cfg.suffix, target_name))
+					f.write("# CFG: %s_%s\n" % (parent_cfg.suffix, target_name))
 					for key in cfg.paramz.keys() | parent_cfg.paramz.keys():
-						if ~key in cfg.paramz:
-							cfg.paramz.add(key, "")
+						if ~(key in cfg.paramz.keys()):
+							cfg.paramz[key] = ""
 						value = cfg.paramz.get(key)
 						k = key.strip()
 						f.write("%s%s = $%s%s %s\n" % (k, suffix, k, parent_suffix, value.strip()))
+					f.write("\n\n")
 
 
 			f.write("\n\n")
@@ -545,20 +583,25 @@ class NGen:
 				for rule_line in rules:
 					rule_lines.append(rule_line)
 
-			for cfg_name in N.configs:
+			for cfg_name in N.configs_ordered:
 				if cfg_name != DEFAULT_NAME:
 					repl = "%s" %(cfg_name)
+					f.write("# CFG %s rules\n\n" % repl)
 					for rule_line in rule_lines:
 						f.write(rule_line.replace("%%", repl))
+					f.write("\n\n")
 
 			for target_name in N.all_targets:
 				cfg = N.configs[target_name]
 				for parent_cfg in cfg.target_configs:
+
 					parent_cfg = N.configs[parent_cfg]
 					parent_suffix = parent_cfg.suffix
 					suffix = "%s_%s" %(parent_suffix, target_name)
+					f.write("# TARGET CFG %s rules\n\n" % suffix)
 					for rule_line in rule_lines:
 						f.write(rule_line.replace("%%", suffix))
+					f.write("\n\n")
 
 
 			f.write("""
@@ -571,6 +614,7 @@ rule ngen
 			for cfg_name in N.configs_ordered:
 				objs = set()
 				cfg = N.configs[cfg_name]
+				f.write("# CFG %s\n\n" % cfg_name)
 				suff = cfg.suffix
 				obj_extension = N.obj_extension
 
@@ -594,6 +638,7 @@ rule ngen
 					objs.add(objname+obj_extension)
 					f.write("build %s: asm_%s %s\n" % (objname+obj_extension, suff, fullname))
 				cfg.objs = objs
+				f.write("\n\n")
 
 			for target_name in N.all_targets:
 				objs = set()
@@ -603,6 +648,7 @@ rule ngen
 					parent_cfg = N.configs[parent_cfg]
 					parent_suffix = parent_cfg.suffix
 					suffix = "%s_%s" %(parent_suffix, target_name)
+					f.write("# TARGET CFG %s\n\n" % suffix)
 					suff = suffix
 					obj_extension = N.obj_extension
 
@@ -638,12 +684,23 @@ rule ngen
 
 
 			f.write("build build.ninja: ngen ngen.cfg\n\n");
-			f.write("default build.ninja ")
-			f.write("hest hest ")
-			f.write("hest hest ")
-			f.write("hest hest ")
+			f.write("default build.ninja\n\n")
 
 			cfg_default = N.configs[N.default_config]
+
+			for target_name in N.all_targets:
+				objs = set()
+				cfg = N.configs[target_name]
+				f.write("build %s: phony " % target_name)
+				for parent_cfg in cfg.target_configs:
+					parent_cfg = N.configs[parent_cfg]
+					parent_suffix = parent_cfg.suffix
+					suffix = "%s_%s" %(parent_suffix, target_name)
+					f.write("%s_%s " %(target_name, suff))
+				f.write("\n\n")
+
+
+
 			# for arch in archs:
 			# 	f.write("%s " % N.GetTargetName(cfg_default, arch))
 			# f.write("\n\n")
@@ -656,7 +713,12 @@ rule ngen
 			# 		f.write("\n\n")
 
 
-			# f.write("build all: phony ");
+			f.write("build all: phony ");
+			for target_name in N.all_targets:
+				cfg = N.configs[target_name]
+				f.write("%s " % target_name)
+			f.write("\n\n")
+
 			# for cfg_name in N.configs:
 			# 	if cfg_name != DEFAULT_NAME:
 			# 		cfg = N.configs[cfg_name];

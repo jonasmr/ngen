@@ -31,3 +31,4 @@ rule metal_%%
 rule metallib_%%
   command = xcrun -sdk macosx metallib $in -o $out
   description = METAL $out
+

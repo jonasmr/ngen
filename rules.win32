@@ -13,3 +13,4 @@ rule c_%%
 rule link_%%
   command = $link $ldflags_%% /OUT:$out $in $libs
   description = LINK $out
+
