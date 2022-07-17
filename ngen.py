@@ -33,7 +33,7 @@ def MergeSuffix(suffix, parent_suffix):
 
 
 class Config:
-	def __init__(C, name, parent, is_target):
+	def __init__(C, name, parent, is_target, is_active):
 		C.extension = ""
 		C.name = name
 		C.cpps = set()
@@ -53,6 +53,7 @@ class Config:
 			C.parent = ""
 
 		C.is_target = is_target
+		C.is_active = is_active
 		C.target_configs = []
 		C.level = 999 if is_target else -1
 		C.suffix = ""
@@ -88,7 +89,7 @@ class NGen:
 		N.default_config = ""
 		N.g_include_prefix="-I"
 		N.obj_extension = ".o"
-		N.configs[DEFAULT_NAME] = Config(DEFAULT_NAME, "", False)
+		N.configs[DEFAULT_NAME] = Config(DEFAULT_NAME, "", False, True)
 		N.configs[DEFAULT_NAME].AddDefaultParams();
 
 		pathname = os.path.dirname(sys.argv[0])        
@@ -171,6 +172,7 @@ class NGen:
 						cfg.metals = cfg.metals | default.metals
 						cfg.objraw = cfg.objraw | default.objraw
 						cfg.suffix = cfg_name
+						cfg.is_active == cfg.is_active and parent_cfg.is_active
 					else:
 						remaining += 1
 
@@ -248,6 +250,12 @@ class NGen:
 	def PlatformMatch(N, p):
 		return N.target_active or ((not p in N.platforms) or p == "" or p == N.active_platform or p in N.active_alias)
 	
+	def PlatformMatchMultiple(N, platforms):
+		for plat in platforms:
+			if plat == N.active_platform or plat in N.active_alias:
+				return True
+		return False
+
 
 	def ProcessFile1(N, p):
 		N.ProcessFile(p, N.GetConfig(""))
@@ -429,9 +437,14 @@ class NGen:
 					elif command == "config":
 						assert not is_target
 						parent = ""
-						if(len(args)>1):
+						num_args = len(args)
+						if(num_args>1):
 							parent = args[1];
-						N.configs[args[0]] = Config(args[0], parent, False)
+						platform_match = True
+						if num_args > 2:
+							platform_match = N.PlatformMatchMultiple(args[2:])
+
+						N.configs[args[0]] = Config(args[0], parent, False, platform_match)
 						if N.default_config == "":
 							N.default_config = arg
 							print("default config is now " + N.default_config)
@@ -447,7 +460,7 @@ class NGen:
 						target_name = arg.strip()
 						if hasattr(N.configs, target_name):
 							print("already has attr " + target_name)
-						N.configs[target_name] = Config(target_name, "", True)
+						N.configs[target_name] = Config(target_name, "", True, True)
 						N.current_target = target_name
 						N.target_active = True
 						N.all_targets.append(target_name)
@@ -519,38 +532,40 @@ class NGen:
 			f.write("\n\n")
 
 			for cfg_name in N.configs_ordered:
-				f.write("# CFG: %s\n" % cfg_name)
 				cfg = N.configs[cfg_name]
-				parent_cfg = N.configs[cfg.parent]
-				suffix = SuffixFixup(cfg.suffix)
-				parent_suffix = SuffixFixup(parent_cfg.suffix)
-				for key in cfg.paramz.keys() | parent_cfg.paramz.keys():
-					value = ""
-					if key in cfg.paramz.keys():
-						value = cfg.paramz.get(key)
-					else:
-						cfg.paramz[key] = ""
-					k = key.strip()
-					f.write("%s%s = $%s%s %s\n" % (k, suffix, k, parent_suffix, value.strip()))
-
-				f.write("\n\n")	
-
-			for target_name in N.all_targets:
-				cfg = N.configs[target_name]
-				for parent_cfg in cfg.target_configs:
-					parent_cfg = N.configs[parent_cfg]
+				if cfg.is_active:
+					f.write("# CFG: %s\n" % cfg_name)
+					parent_cfg = N.configs[cfg.parent]
+					suffix = SuffixFixup(cfg.suffix)
 					parent_suffix = SuffixFixup(parent_cfg.suffix)
-					suffix = SuffixFixup("%s_%s" %(parent_cfg.suffix, target_name))
-					f.write("# CFG: %s_%s\n" % (parent_cfg.suffix, target_name))
 					for key in cfg.paramz.keys() | parent_cfg.paramz.keys():
-						value = "" 
+						value = ""
 						if key in cfg.paramz.keys():
 							value = cfg.paramz.get(key)
 						else:
 							cfg.paramz[key] = ""
 						k = key.strip()
 						f.write("%s%s = $%s%s %s\n" % (k, suffix, k, parent_suffix, value.strip()))
+
 					f.write("\n\n")
+
+			for target_name in N.all_targets:
+				cfg = N.configs[target_name]
+				for parent_cfg in cfg.target_configs:
+					parent_cfg = N.configs[parent_cfg]
+					if parent_cfg.is_active:
+						parent_suffix = SuffixFixup(parent_cfg.suffix)
+						suffix = SuffixFixup("%s_%s" %(parent_cfg.suffix, target_name))
+						f.write("# CFG: %s_%s\n" % (parent_cfg.suffix, target_name))
+						for key in cfg.paramz.keys() | parent_cfg.paramz.keys():
+							value = ""
+							if key in cfg.paramz.keys():
+								value = cfg.paramz.get(key)
+							else:
+								cfg.paramz[key] = ""
+							k = key.strip()
+							f.write("%s%s = $%s%s %s\n" % (k, suffix, k, parent_suffix, value.strip()))
+						f.write("\n\n")
 
 
 			f.write("\n\n")
@@ -598,14 +613,14 @@ class NGen:
 			for target_name in N.all_targets:
 				cfg = N.configs[target_name]
 				for parent_cfg in cfg.target_configs:
-
 					parent_cfg = N.configs[parent_cfg]
-					parent_suffix = parent_cfg.suffix
-					suffix = "%s_%s" %(parent_suffix, target_name)
-					f.write("# TARGET CFG %s rules\n\n" % suffix)
-					for rule_line in rule_lines:
-						f.write(rule_line.replace("%%", suffix))
-					f.write("\n\n")
+					if parent_cfg.is_active:
+						parent_suffix = parent_cfg.suffix
+						suffix = "%s_%s" %(parent_suffix, target_name)
+						f.write("# TARGET CFG %s rules\n\n" % suffix)
+						for rule_line in rule_lines:
+							f.write(rule_line.replace("%%", suffix))
+						f.write("\n\n")
 
 
 			f.write("""
@@ -618,31 +633,32 @@ rule ngen
 			for cfg_name in N.configs_ordered:
 				objs = set()
 				cfg = N.configs[cfg_name]
-				f.write("# CFG %s\n\n" % cfg_name)
-				suff = cfg_name
-				obj_extension = N.obj_extension
+				if cfg.is_active:
+					f.write("# CFG %s\n\n" % cfg_name)
+					suff = cfg_name
+					obj_extension = N.obj_extension
 
-				for v in cfg.cs:
-					objname, fullname = N.GetObjName(v, ".c", cfg)
-					objs.add(objname+obj_extension)
-					f.write("build %s: c_%s %s\n" % (objname+obj_extension, suff, fullname))
+					for v in cfg.cs:
+						objname, fullname = N.GetObjName(v, ".c", cfg)
+						objs.add(objname+obj_extension)
+						f.write("build %s: c_%s %s\n" % (objname+obj_extension, suff, fullname))
 
-				for v in cfg.cpps:
-					objname, fullname = N.GetObjName(v, ".cpp", cfg)
-					objs.add(objname+obj_extension)
-					f.write("build %s: cxx_%s %s\n" % (objname+obj_extension, suff, fullname))
+					for v in cfg.cpps:
+						objname, fullname = N.GetObjName(v, ".cpp", cfg)
+						objs.add(objname+obj_extension)
+						f.write("build %s: cxx_%s %s\n" % (objname+obj_extension, suff, fullname))
 
-				for v in cfg.mms:
-					objname, fullname = N.GetObjName(v, ".mm", cfg)
-					objs.add(objname+obj_extension)
-					f.write("build %s: mxx_%s %s\n" % (objname+obj_extension, suff, fullname))
+					for v in cfg.mms:
+						objname, fullname = N.GetObjName(v, ".mm", cfg)
+						objs.add(objname+obj_extension)
+						f.write("build %s: mxx_%s %s\n" % (objname+obj_extension, suff, fullname))
 
-				for v in cfg.asms:
-					objname, fullname = N.GetObjName(v, ".s", cfg)
-					objs.add(objname+obj_extension)
-					f.write("build %s: asm_%s %s\n" % (objname+obj_extension, suff, fullname))
-				cfg.objs = objs
-				f.write("\n\n")
+					for v in cfg.asms:
+						objname, fullname = N.GetObjName(v, ".s", cfg)
+						objs.add(objname+obj_extension)
+						f.write("build %s: asm_%s %s\n" % (objname+obj_extension, suff, fullname))
+					cfg.objs = objs
+					f.write("\n\n")
 
 			for target_name in N.all_targets:
 				cfg = N.configs[target_name]
@@ -650,42 +666,43 @@ rule ngen
 				for parent_cfg in cfg.target_configs:
 					objs = set()
 					parent_cfg = N.configs[parent_cfg]
-					parent_suffix = parent_cfg.suffix
-					#target_suffix = SuffixFixup(parent_suffix)
-					suffix = "%s_%s" %(parent_suffix, target_name)
-					f.write("# TARGET CFG %s\n\n" % suffix)
-					suff = suffix
-					obj_extension = N.obj_extension
+					if parent_cfg.is_active:
+						parent_suffix = parent_cfg.suffix
+						#target_suffix = SuffixFixup(parent_suffix)
+						suffix = "%s_%s" %(parent_suffix, target_name)
+						f.write("# TARGET CFG %s\n\n" % suffix)
+						suff = suffix
+						obj_extension = N.obj_extension
 
-					for v in cfg.cs:
-						objname, fullname = N.GetObjName(v, ".c", parent_cfg)
-						objs.add(objname+obj_extension)
-						f.write("build %s: c_%s %s\n" % (objname+obj_extension, suff, fullname))
+						for v in cfg.cs:
+							objname, fullname = N.GetObjName(v, ".c", parent_cfg)
+							objs.add(objname+obj_extension)
+							f.write("build %s: c_%s %s\n" % (objname+obj_extension, suff, fullname))
 
-					for v in cfg.cpps:
-						objname, fullname = N.GetObjName(v, ".cpp", parent_cfg)
-						objs.add(objname+obj_extension)
-						f.write("build %s: cxx_%s %s\n" % (objname+obj_extension, suff, fullname))
+						for v in cfg.cpps:
+							objname, fullname = N.GetObjName(v, ".cpp", parent_cfg)
+							objs.add(objname+obj_extension)
+							f.write("build %s: cxx_%s %s\n" % (objname+obj_extension, suff, fullname))
 
-					for v in cfg.mms:
-						objname, fullname = N.GetObjName(v, ".mm", parent_cfg)
-						objs.add(objname+obj_extension)
-						f.write("build %s: mxx_%s %s\n" % (objname+obj_extension, suff, fullname))
+						for v in cfg.mms:
+							objname, fullname = N.GetObjName(v, ".mm", parent_cfg)
+							objs.add(objname+obj_extension)
+							f.write("build %s: mxx_%s %s\n" % (objname+obj_extension, suff, fullname))
 
-					for v in cfg.asms:
-						objname, fullname = N.GetObjName(v, ".s", parent_cfg)
-						objs.add(objname+obj_extension)
-						f.write("build %s: asm_%s %s\n" % (objname+obj_extension, suff, fullname))
+						for v in cfg.asms:
+							objname, fullname = N.GetObjName(v, ".s", parent_cfg)
+							objs.add(objname+obj_extension)
+							f.write("build %s: asm_%s %s\n" % (objname+obj_extension, suff, fullname))
 
 
-					target_path = N.GetTargetPath(target_name, parent_cfg)
-					ext = N.GetExtension()
-					f.write("build %s: link_%s" % (target_path, suffix))
-					for obj in objs:
-						f.write(" " + obj)
-					for obj in parent_cfg.objs:
-						f.write(" " + obj)
-					f.write("\n\n")
+						target_path = N.GetTargetPath(target_name, parent_cfg)
+						ext = N.GetExtension()
+						f.write("build %s: link_%s" % (target_path, suffix))
+						for obj in objs:
+							f.write(" " + obj)
+						for obj in parent_cfg.objs:
+							f.write(" " + obj)
+						f.write("\n\n")
 
 
 			f.write("build build.ninja: ngen ngen.cfg\n\n");
@@ -698,9 +715,10 @@ rule ngen
 				f.write("build %s: phony " % target_name)
 				for parent_cfg in cfg.target_configs:
 					parent_cfg = N.configs[parent_cfg]
-				#	parent_suffix = parent_cfg.suffix
-					#suffix = "%s_%s" %(parent_suffix, target_name)
-					f.write("%s " % (N.GetTargetPath(target_name, parent_cfg) ) )
+					if parent_cfg.is_active:
+					#	parent_suffix = parent_cfg.suffix
+						#suffix = "%s_%s" %(parent_suffix, target_name)
+						f.write("%s " % (N.GetTargetPath(target_name, parent_cfg) ) )
 				f.write("\n\n")
 
 
