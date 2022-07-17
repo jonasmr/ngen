@@ -170,7 +170,7 @@ class NGen:
 						cfg.objs = cfg.objs | default.objs
 						cfg.metals = cfg.metals | default.metals
 						cfg.objraw = cfg.objraw | default.objraw
-						cfg.suffix = MergeSuffix(cfg_name, parent_cfg.suffix)
+						cfg.suffix = cfg_name
 					else:
 						remaining += 1
 
