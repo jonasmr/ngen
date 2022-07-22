@@ -717,17 +717,48 @@ rule ngen
 
 			cfg_default = N.configs[N.default_config]
 
+
+			f.write("# one target all config aliases\n");
+
 			for target_name in N.all_targets:
-				objs = set()
 				cfg = N.configs[target_name]
 				f.write("build %s: phony " % target_name)
 				for parent_cfg in cfg.target_configs:
 					parent_cfg = N.configs[parent_cfg]
 					if parent_cfg.is_active:
-					#	parent_suffix = parent_cfg.suffix
-						#suffix = "%s_%s" %(parent_suffix, target_name)
 						f.write("%s " % (N.GetTargetPath(target_name, parent_cfg) ) )
-				f.write("\n\n")
+				f.write("\n")
+			f.write("\n")
+
+			f.write("# one target one config aliases\n");
+			for target_name in N.all_targets:
+				cfg = N.configs[target_name]
+				for parent_cfg in cfg.target_configs:
+					parent_cfg = N.configs[parent_cfg]
+					if parent_cfg.is_active:
+						f.write("build %s_%s: phony %s\n" % (target_name, parent_cfg.name, N.GetTargetPath(target_name, parent_cfg) ) )
+			f.write("\n")
+
+
+			f.write("# one config all target aliases\n");
+			for cfg_name in N.configs_ordered:
+				cfg = N.configs[cfg_name]
+				if cfg.is_active:
+					target_names = set()
+					for target_name in N.all_targets:
+						target_cfg = N.configs[target_name]
+						if cfg_name in target_cfg.target_configs:
+							target_names.add(target_name)
+
+					if len(target_names) > 0:
+						f.write("build %s: phony " % cfg_name)
+						for tname in target_names:
+							f.write("%s " % ( N.GetTargetPath(tname, cfg)))
+						f.write("\n")
+			f.write("\n")
+
+
+
 
 
 
