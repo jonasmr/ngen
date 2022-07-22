@@ -10,7 +10,15 @@ rule c_%%
   depfile = $out.d
   deps = msvc
 
+
+rule asm_%%
+  command = ml64 /Fo$out /nologo /c $in
+  description = ASM $out
+
+
 rule link_%%
-  command = $link $ldflags_%% /OUT:$out $in $libs
+  command = $link /nologo $ldflags_%% /OUT:$out $in $libs
   description = LINK $out
+
+
 

@@ -78,6 +78,7 @@ class NGen:
 		N.current_target = ""
 		N.target_active = False
 		N.default_target = "" 
+		N.ngen_files = set()
 
 		N.modules["win32"] = win32
 		N.modules["linux"] = linux
@@ -92,8 +93,9 @@ class NGen:
 		N.configs[DEFAULT_NAME] = Config(DEFAULT_NAME, "", False, True)
 		N.configs[DEFAULT_NAME].AddDefaultParams();
 
-		pathname = os.path.dirname(sys.argv[0])        
-		N.code_path = os.path.abspath(pathname)
+		N.pathname = os.path.dirname(sys.argv[0])        
+		N.code_path = os.path.abspath(N.pathname)
+		N.code_path_rel = os.path.relpath(N.pathname)
 
 		N.parser = argparse.ArgumentParser()
 		N.parser.add_argument('-v', '--verbose', help='verbose, do lots of logging', action="store_true")
@@ -277,7 +279,7 @@ class NGen:
 				if extension == "metal":
 					cfg.metals.add(p)
 					print("METAL " + p)
-				if extension == "s" or extension == "S":
+				if extension == "s" or extension == "S" or extension == "asm":
 					cfg.asms.add(p)
 					print("ASM " + p)
 		else:
@@ -392,6 +394,7 @@ class NGen:
 	def NgenProcessFile(N, filename):
 		f = open(filename)
 		line_idx = 0;
+		N.ngen_files.add(filename)
 
 		for line in f:
 			line_idx = line_idx + 1
@@ -596,6 +599,7 @@ class NGen:
 			# f.write("\n\n")
 
 			rule_filename = N.code_path + "/rules." + N.active_platform
+			N.ngen_files.add(N.code_path_rel + "/rules." + N.active_platform)
 			print("loading rules from " + rule_filename)
 			rule_lines = []
 			with open(rule_filename, "r") as rules:
@@ -705,7 +709,11 @@ rule ngen
 						f.write("\n\n")
 
 
-			f.write("build build.ninja: ngen ngen.cfg\n\n");
+			f.write("build build.ninja: ngen ");
+			for ngen_file in N.ngen_files:
+				f.write("%s " % ngen_file)
+			f.write("\n\n");
+
 
 			cfg_default = N.configs[N.default_config]
 
