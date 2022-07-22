@@ -1,11 +1,11 @@
 rule cxx_%%
-  command = $cxx /FS /showIncludes /c $in /Fo$out $cflags_%% $includepath_%%
+  command = $cxx /FS /showIncludes /Fd:$out.pdb /c $in /Fo$out $cflags_%% $includepath_%%
   description = CXX $out
   depfile = $out.d
   deps = msvc
 
 rule c_%%
-  command = $cxx /FS /showIncludes /c $in /Fo$out $cflags_%% $includepath_%%
+  command = $cxx /FS /showIncludes /Fd:$out.pdb /c $in /Fo$out $cflags_%% $includepath_%%
   description = CXX $out
   depfile = $out.d
   deps = msvc
@@ -17,7 +17,7 @@ rule asm_%%
 
 
 rule link_%%
-  command = $link /nologo $ldflags_%% /OUT:$out $in $libs
+  command = $link /nologo /PDB:$out.pdb $ldflags_%% /OUT:$out $in $libs
   description = LINK $out
 
 
