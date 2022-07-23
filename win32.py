@@ -76,6 +76,7 @@ def HandleCommand(N, command, arg, cfg):
 def WriteAssignments(N, f):
 	f.write("cxx = " + N.g_win32CLPath + "\n\n")
 	f.write("link = " + N.g_win32LinkPath + "\n\n")
+	f.write("msvc_deps_prefix = Note: including file:\n\n")
 
 def Extension(N):
 	return ".exe"
