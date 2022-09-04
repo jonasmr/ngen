@@ -295,7 +295,8 @@ class NGen:
 				if os.path.isdir(abspth):
 					for filename in os.listdir(abspth):
 						p = os.path.join(d, filename)
-						N.ProcessFile(p, cfg)
+						if not os.path.isdir(p):
+							N.ProcessFile(p, cfg)
 				else:
 					print("invalid path %s" % abspth)
 
