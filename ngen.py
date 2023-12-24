@@ -106,6 +106,8 @@ class NGen:
 
 		N.args = N.parser.parse_args()
 		N.verbose = N.args.verbose;
+		N.parse_file = ""
+		N.parse_line = 0
 		if N.verbose:
 			print("VERBOSE!!\n")
 		if N.args.clean:
@@ -348,7 +350,7 @@ class NGen:
 					Value += N.g_include_prefix + "\"%s\" " % os.path.abspath(arg);
 					print( "INCLUDE '%s'" % Value)
 				else:
-					print("Failing to find path %s" % str(arg))
+					N.ParseError("Failing to find path %s" % str(arg))
 					exit(1)
 		return Value.strip()
 
@@ -392,6 +394,11 @@ class NGen:
 		else:
 			print("not adding alias %s :: %s" %(alias, N.active_platform))
 
+	def ParseError(N, error_msg):
+		print("%s:%d ParseError %s" % (N.parse_file, N.parse_line, error_msg));
+		exit(1)
+
+
 	def NgenProcessFile(N, filename):
 		f = open(filename)
 		line_idx = 0;
@@ -399,6 +406,8 @@ class NGen:
 
 		for line in f:
 			line_idx = line_idx + 1
+			N.parse_file = filename
+			N.parse_line = line_idx
 			line = line.strip()
 			if len(line) > 0 and line[0] != '#':
 				IsCommand = line[0] == '.'
@@ -421,8 +430,7 @@ class NGen:
 				print(" COMMAND ('%s' '%s' '%s' '%s') --> %s" % (command, platform, config, arch, arg))
 				if IsCommand:
 					if command == "break":
-						print("BREAK!\n")
-						exit(1)
+						N.ParseError("BREAK");
 					elif command == "ngen":
 						assert not is_target
 						if N.PlatformMatch(platform):
