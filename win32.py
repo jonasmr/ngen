@@ -49,13 +49,24 @@ def Init(N):
 		with open(N.g_win32VersionPath) as f:
 			N.g_win32VCVersionNumber = ''.join(f.read().split())
 		N.g_win32CLPath = "%s\\VC\\Tools\\MSVC\\%s\\bin\\HostX64\\x64\\cl.exe" % (N.g_win32InstallationPath, N.g_win32VCVersionNumber)
+		N.g_win32ML64Path = "%s\\VC\\Tools\\MSVC\\%s\\bin\\HostX64\\x64\\ml64.exe" % (N.g_win32InstallationPath, N.g_win32VCVersionNumber)
 		N.g_win32LinkPath = "%s\\VC\\Tools\\MSVC\\%s\\bin\\HostX64\\x64\\link.exe" % (N.g_win32InstallationPath, N.g_win32VCVersionNumber)
 		N.g_win32VCPath = "%s\\VC\\Tools\\MSVC\\%s" % (N.g_win32InstallationPath, N.g_win32VCVersionNumber)
+
+
+def WriteWindowsBatFile(N):
+	with open("win32-ninja.bat", "w") as f:
+		f.write("@Set PATH=%%PATH%%;C:\\Program Files (x86)\\Windows Kits\\10\\bin\\%s\\x86\n" % N.g_win32sdk); 
+		f.write("@Set PATH=%PATH%;C:\\Program Files (x86)\\Windows Kits\\10\\bin\\x86\n");
+		f.write("@ninja %*\n");
+		f.close(); 
 
 def PreMerge(N):
 	if N.g_win32sdk != "":
 		N.g_win32sdkInclude = "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\%s" % N.g_win32sdk
 		N.g_win32sdkLib = "C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\%s" % N.g_win32sdk
+		print(N.g_win32sdkInclude)
+		print(N.g_win32sdkLib)
 		N.AddParam("cflags", "-I\"%s\\include\"" % N.g_win32VCPath)
 		N.AddParam("cflags", "-I\"%s\\atlmfc\\include\"" % N.g_win32VCPath)
 		N.AddParam("cflags", "-I\"%s\\ucrt\"" % N.g_win32sdkInclude)
@@ -63,7 +74,9 @@ def PreMerge(N):
 		N.AddParam("cflags", "-I\"%s\\shared\"" % N.g_win32sdkInclude)
 		N.AddParam("ldflags", "/LIBPATH:\"%s\\ucrt\\x64\"" % N.g_win32sdkLib);
 		N.AddParam("ldflags", "/LIBPATH:\"%s\\um\\x64\"" % N.g_win32sdkLib);
-		N.AddParam("ldflags", "/LIBPATH:\"%s\\lib\\x64\"" % N.g_win32VCPath)
+		N.AddParam("ldflags", "/LIBPATH:\"%s\\lib\\x64\"" % N.g_win32VCPath);
+		WriteWindowsBatFile(N);
+
 
 def HandleCommand(N, command, arg, cfg):
 	if command == "win32sdk":
@@ -76,6 +89,7 @@ def HandleCommand(N, command, arg, cfg):
 def WriteAssignments(N, f):
 	f.write("cxx = " + N.g_win32CLPath + "\n\n")
 	f.write("link = " + N.g_win32LinkPath + "\n\n")
+	f.write("ml64 = " + N.g_win32ML64Path + "\n\n")
 	f.write("msvc_deps_prefix = Note: including file:\n\n")
 
 def Extension(N):

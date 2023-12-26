@@ -12,7 +12,7 @@ rule c_%%
 
 
 rule asm_%%
-  command = ml64 /Fo$out /nologo /c $in
+  command = $ml64 /Fo$out /nologo /c $in
   description = ASM $out
 
 

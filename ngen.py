@@ -31,6 +31,12 @@ def MergeSuffix(suffix, parent_suffix):
 	else:
 		return suffix
 
+def PathFix(str): #..
+	if str[0] == "\"" and str[-1] == "\"":
+		print("PATH FIX %s" % str);
+		return str[1:-1]
+	return str
+
 
 class Config:
 	def __init__(C, name, parent, is_target, is_active):
@@ -346,6 +352,8 @@ class NGen:
 			Array = Value.split(" ")
 			Value = "";
 			for arg in Array:
+				arg = PathFix(arg);
+				print("HELLO %s" % arg);
 				if os.path.exists(arg):
 					Value += N.g_include_prefix + "\"%s\" " % os.path.abspath(arg);
 					print( "INCLUDE '%s'" % Value)
