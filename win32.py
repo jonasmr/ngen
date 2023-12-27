@@ -8,7 +8,7 @@ def RunVSWhere(N, ExtraArgs):
 	if N.active_platform == "win32":
 		ProgramFilesx84 = os.getenv("ProgramFiles(x86)");
 		Path = "\"%s\\Microsoft Visual Studio\\Installer\\vswhere.exe\"%s" % (ProgramFilesx84, ExtraArgs);
-		print(shlex.split(Path))
+		#print(shlex.split(Path))
 		Process = subprocess.Popen(args=shlex.split(Path), stdout=subprocess.PIPE)
 		out, err = Process.communicate()
 		Process.wait()
@@ -65,8 +65,12 @@ def PreMerge(N):
 	if N.g_win32sdk != "":
 		N.g_win32sdkInclude = "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\%s" % N.g_win32sdk
 		N.g_win32sdkLib = "C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\%s" % N.g_win32sdk
-		print(N.g_win32sdkInclude)
-		print(N.g_win32sdkLib)
+		if (not os.path.isdir(N.g_win32sdkInclude)):
+			print("win32sdk path incorrect, couldn't find '%s'" % N.g_win32sdkInclude);
+			return False;
+		if (not os.path.isdir(N.g_win32sdkLib)):
+			print("win32sdk path incorrect, couldn't find '%s'" % N.g_win32sdkInclude);
+			return False;
 		N.AddParam("cflags", "-I\"%s\\include\"" % N.g_win32VCPath)
 		N.AddParam("cflags", "-I\"%s\\atlmfc\\include\"" % N.g_win32VCPath)
 		N.AddParam("cflags", "-I\"%s\\ucrt\"" % N.g_win32sdkInclude)
@@ -76,6 +80,7 @@ def PreMerge(N):
 		N.AddParam("ldflags", "/LIBPATH:\"%s\\um\\x64\"" % N.g_win32sdkLib);
 		N.AddParam("ldflags", "/LIBPATH:\"%s\\lib\\x64\"" % N.g_win32VCPath);
 		WriteWindowsBatFile(N);
+	return True;
 
 
 def HandleCommand(N, command, arg, cfg):

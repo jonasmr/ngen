@@ -33,7 +33,6 @@ def MergeSuffix(suffix, parent_suffix):
 
 def PathFix(str): #..
 	if str[0] == "\"" and str[-1] == "\"":
-		print("PATH FIX %s" % str);
 		return str[1:-1]
 	return str
 
@@ -50,7 +49,7 @@ class Config:
 		C.metals = set()
 		C.objraw = set()
 		C.paramz = {}
-		if ~is_target:
+		if not is_target:
 			if parent == "":
 				C.parent = DEFAULT_NAME
 			else:
@@ -190,7 +189,6 @@ class NGen:
 			cfg = N.configs[target_name]
 			if not cfg.target_configs:
 				cfg.target_configs = N.configs_ordered
-		print("hello")
 
 
 	def GetExtension(N):
@@ -271,7 +269,7 @@ class NGen:
 		N.ProcessFile(p, N.GetConfig(""))
 
 	def ProcessFile(N, p, cfg):
-		print("p " + p);
+		#print("p " + p);
 		if os.path.isfile(p):
 			extension, platform = N.SplitPath(p)
 			if N.PlatformMatch(platform):
@@ -306,7 +304,7 @@ class NGen:
 						if not os.path.isdir(p):
 							N.ProcessFile(p, cfg)
 				else:
-					print("invalid path %s" % abspth)
+					N.ParseError("invalid path %s" % abspth)
 
 	def GetObjName(N, name, ext, cfg):
 		rawbase = os.path.basename(name)[:-len(ext)]
@@ -353,13 +351,11 @@ class NGen:
 			Value = "";
 			for arg in Array:
 				arg = PathFix(arg);
-				print("HELLO %s" % arg);
 				if os.path.exists(arg):
 					Value += N.g_include_prefix + "\"%s\" " % os.path.abspath(arg);
-					print( "INCLUDE '%s'" % Value)
+					#print( "INCLUDE '%s'" % Value)
 				else:
 					N.ParseError("Failing to find path %s" % str(arg))
-					exit(1)
 		return Value.strip()
 
 
@@ -435,22 +431,26 @@ class NGen:
 				command, platform, config, arch = N.SplitCommand3(command);
 				cfg = N.GetConfig(config)
 				is_target = cfg.is_target
-				print(" COMMAND ('%s' '%s' '%s' '%s') --> %s" % (command, platform, config, arch, arg))
+				if N.verbose:
+					print("COMMAND ('%s' '%s' '%s' '%s') --> %s" % (command, platform, config, arch, arg))
 				if IsCommand:
 					if command == "break":
 						N.ParseError("BREAK");
 					elif command == "ngen":
 						assert not is_target
 						if N.PlatformMatch(platform):
-							print("recursive ngen %s !!!\n" %(arg))
+							if N.verbose:
+								print("Recursing into %s\n" %(arg))
 							if os.path.isfile(arg):
 								N.NgenProcessFile(arg)
 							else:
-								print("file was not found!\n")
+								if N.verbose:
+									print("file was not found!\n")
 					elif command == "tempdir":
 						assert not is_target
 						N.tempdir = os.path.abspath(arg)
-						print("tempdir is now " + N.tempdir);
+						if N.verbose:
+							print("tempdir is now " + N.tempdir);
 					elif command == "outdir":
 						assert not is_target
 						N.outdir = os.path.abspath(arg)
@@ -467,7 +467,7 @@ class NGen:
 						N.configs[args[0]] = Config(args[0], parent, False, platform_match)
 						if N.default_config == "":
 							N.default_config = arg
-							print("default config is now " + N.default_config)
+							print("default config " + N.default_config)
 					elif(command == "dir"):
 						if N.PlatformMatch(platform):
 							N.ProcessPath(arg, cfg)
@@ -479,7 +479,7 @@ class NGen:
 
 						target_name = arg.strip()
 						if hasattr(N.configs, target_name):
-							print("already has attr " + target_name)
+							pass
 						N.configs[target_name] = Config(target_name, "", True, True)
 						N.current_target = target_name
 						N.target_active = True
@@ -498,8 +498,7 @@ class NGen:
 					elif N.active_module.HandleCommand(N, command, arg, cfg):
 						pass # custom command
 					else:
-						print("unknown command " + command + " ARG " + arg)
-						exit(1)
+						N.ParseError("unknown command " + command + " ARG " + arg);
 				else:
 					l0 = command
 					l1 = arg
@@ -525,7 +524,9 @@ class NGen:
 
 
 	def WriteBuildFile(N):
-		N.active_module.PreMerge(N)		
+
+		if not N.active_module.PreMerge(N):
+			exit(1)
 		N.MergeConfigs()
 
 		if N.default_config == "":
@@ -617,7 +618,8 @@ class NGen:
 
 			rule_filename = N.code_path + "/rules." + N.active_platform
 			N.ngen_files.add(N.code_path_rel + "/rules." + N.active_platform)
-			print("loading rules from " + rule_filename)
+			if N.verbose:
+				print("loading rules from " + rule_filename)
 			rule_lines = []
 			with open(rule_filename, "r") as rules:
 				for rule_line in rules:
