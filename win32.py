@@ -71,11 +71,11 @@ def PreMerge(N):
 		if (not os.path.isdir(N.g_win32sdkLib)):
 			print("win32sdk path incorrect, couldn't find '%s'" % N.g_win32sdkInclude);
 			return False;
-		N.AddParam("cflags", "-I\"%s\\include\"" % N.g_win32VCPath)
-		N.AddParam("cflags", "-I\"%s\\atlmfc\\include\"" % N.g_win32VCPath)
-		N.AddParam("cflags", "-I\"%s\\ucrt\"" % N.g_win32sdkInclude)
-		N.AddParam("cflags", "-I\"%s\\um\"" % N.g_win32sdkInclude)
-		N.AddParam("cflags", "-I\"%s\\shared\"" % N.g_win32sdkInclude)
+		N.AddParam("cflags_platform", "-I\"%s\\include\"" % N.g_win32VCPath)
+		N.AddParam("cflags_platform", "-I\"%s\\atlmfc\\include\"" % N.g_win32VCPath)
+		N.AddParam("cflags_platform", "-I\"%s\\ucrt\"" % N.g_win32sdkInclude)
+		N.AddParam("cflags_platform", "-I\"%s\\um\"" % N.g_win32sdkInclude)
+		N.AddParam("cflags_platform", "-I\"%s\\shared\"" % N.g_win32sdkInclude)
 		N.AddParam("ldflags", "/LIBPATH:\"%s\\ucrt\\x64\"" % N.g_win32sdkLib);
 		N.AddParam("ldflags", "/LIBPATH:\"%s\\um\\x64\"" % N.g_win32sdkLib);
 		N.AddParam("ldflags", "/LIBPATH:\"%s\\lib\\x64\"" % N.g_win32VCPath);

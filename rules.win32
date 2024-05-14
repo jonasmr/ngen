@@ -1,11 +1,11 @@
 rule cxx_%%
-  command = $cxx /FS /showIncludes /Fd:$out.pdb /c $in /Fo$out $cflags_%% $includepath_%%
+  command = $cxx /FS /showIncludes /Fd:$out.pdb /c $in /Fo$out $cflags_%% $includepath_%% $cflags_platform
   description = CXX $out
   depfile = $out.d
   deps = msvc
 
 rule c_%%
-  command = $cxx /FS /showIncludes /Fd:$out.pdb /c $in /Fo$out $cflags_%% $includepath_%%
+  command = $cxx /FS /showIncludes /Fd:$out.pdb /c $in /Fo$out $cflags_%% $includepath_%% $cflags_platform
   description = CXX $out
   depfile = $out.d
   deps = msvc

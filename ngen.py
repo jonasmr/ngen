@@ -710,7 +710,7 @@ rule ngen
 					if len(cfg.copy_files):
 						f.write(f"build copy_files_{suff}: phony ")					
 						for v in cfg.copy_files:
-							f.write(f"$outdir_{suff}\\{PathGetFilename(v)}")
+							f.write(f"$outdir_{suff}\\{PathGetFilename(v)} ")
 						f.write("\n")
 						cfg.copy_files_target = f" copy_files_{suff}" 
 
