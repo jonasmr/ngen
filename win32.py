@@ -8,7 +8,6 @@ def RunVSWhere(N, ExtraArgs):
 	if N.active_platform == "win32":
 		ProgramFilesx84 = os.getenv("ProgramFiles(x86)");
 		Path = "\"%s\\Microsoft Visual Studio\\Installer\\vswhere.exe\"%s" % (ProgramFilesx84, ExtraArgs);
-		#print(shlex.split(Path))
 		Process = subprocess.Popen(args=shlex.split(Path), stdout=subprocess.PIPE)
 		out, err = Process.communicate()
 		Process.wait()
@@ -31,6 +30,7 @@ def ExecuteActions(N):
 
 def Init(N):
 	N.g_win32sdk = ""
+	N.g_win32toolchain = "15"
 	N.g_win32InstallationPath = ""
 	N.g_win32VersionPath = ""
 	N.g_win32VCVersionNumber = ""
@@ -40,18 +40,6 @@ def Init(N):
 	N.g_win32LinkPath = "";
 	N.g_win32VCPath = ""
 	N.g_vswhere = {}
-	if N.active_platform == "win32":
-		N.g_vswhere = RunVSWhere(N, " -products 'Microsoft.VisualStudio.Product.BuildTools'")
-		if not "installationPath" in N.g_vswhere:
-			N.g_vswhere = RunVSWhere(N, "")
-		N.g_win32InstallationPath = N.g_vswhere["installationPath"]
-		N.g_win32VersionPath = "%s\\VC\\Auxiliary\\Build\\Microsoft.VCToolsVersion.default.txt" % N.g_win32InstallationPath
-		with open(N.g_win32VersionPath) as f:
-			N.g_win32VCVersionNumber = ''.join(f.read().split())
-		N.g_win32CLPath = "%s\\VC\\Tools\\MSVC\\%s\\bin\\HostX64\\x64\\cl.exe" % (N.g_win32InstallationPath, N.g_win32VCVersionNumber)
-		N.g_win32ML64Path = "%s\\VC\\Tools\\MSVC\\%s\\bin\\HostX64\\x64\\ml64.exe" % (N.g_win32InstallationPath, N.g_win32VCVersionNumber)
-		N.g_win32LinkPath = "%s\\VC\\Tools\\MSVC\\%s\\bin\\HostX64\\x64\\link.exe" % (N.g_win32InstallationPath, N.g_win32VCVersionNumber)
-		N.g_win32VCPath = "%s\\VC\\Tools\\MSVC\\%s" % (N.g_win32InstallationPath, N.g_win32VCVersionNumber)
 
 
 def WriteWindowsBatFile(N):
@@ -62,6 +50,23 @@ def WriteWindowsBatFile(N):
 		f.close(); 
 
 def PreMerge(N):
+	version = N.g_win32toolchain
+	
+	if N.active_platform == "win32":
+		N.g_vswhere = RunVSWhere(N, f" -latest -version {version}")
+		if not "installationPath" in N.g_vswhere:
+			print("Failed to get installation path. check your vs version.")
+			exit(1)
+		N.g_win32InstallationPath = N.g_vswhere["installationPath"]
+		N.g_win32VersionPath = "%s\\VC\\Auxiliary\\Build\\Microsoft.VCToolsVersion.default.txt" % N.g_win32InstallationPath
+		with open(N.g_win32VersionPath) as f:
+			N.g_win32VCVersionNumber = ''.join(f.read().split())
+		N.g_win32CLPath = "%s\\VC\\Tools\\MSVC\\%s\\bin\\HostX64\\x64\\cl.exe" % (N.g_win32InstallationPath, N.g_win32VCVersionNumber)
+		N.g_win32ML64Path = "%s\\VC\\Tools\\MSVC\\%s\\bin\\HostX64\\x64\\ml64.exe" % (N.g_win32InstallationPath, N.g_win32VCVersionNumber)
+		N.g_win32LinkPath = "%s\\VC\\Tools\\MSVC\\%s\\bin\\HostX64\\x64\\link.exe" % (N.g_win32InstallationPath, N.g_win32VCVersionNumber)
+		N.g_win32VCPath = "%s\\VC\\Tools\\MSVC\\%s" % (N.g_win32InstallationPath, N.g_win32VCVersionNumber)
+
+
 	if N.g_win32sdk != "":
 		N.g_win32sdkInclude = "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\%s" % N.g_win32sdk
 		N.g_win32sdkLib = "C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\%s" % N.g_win32sdk
@@ -88,7 +93,12 @@ def HandleCommand(N, command, arg, cfg):
 		N.g_win32sdk = arg
 		print("win32 SDK: " + N.g_win32sdk)
 		return True
-	endif
+	if command == "win32toolchain":
+		N.g_win32toolchain = arg
+		print("win32 toolchain version: " + N.g_win32toolchain)
+		return True
+
+
 	return False
 
 def WriteAssignments(N, f):
