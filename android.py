@@ -60,6 +60,7 @@ def Init(N):
 def PreMerge(N):
 	UpdateAndroidVersion(N)
 	N.ProcessFile1("%s/sources/android/native_app_glue/android_native_app_glue.c" % N.android_sdk)
+	return True
 
 def HandleCommand(N, command, arg, cfg):
 	if command == "android_package":

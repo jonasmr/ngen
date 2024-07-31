@@ -33,5 +33,5 @@ rule metallib_%%
   description = METAL $out
 
 rule copy_%%
-  command cp -a $in $out
+  command = cp -a $in $out
   description = copy $out

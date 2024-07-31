@@ -10,7 +10,7 @@ def Init(N):
 	pass
 
 def PreMerge(N):
-	pass	
+	return True	
 
 def HandleCommand(N, command, arg, cfg):
 	return False

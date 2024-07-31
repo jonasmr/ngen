@@ -544,8 +544,8 @@ class NGen:
 
 
 	def WriteBuildFile(N):
-
 		if not N.active_module.PreMerge(N):
+			print("Premerge failed, exiting")
 			exit(1)
 		N.MergeConfigs()
 
