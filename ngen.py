@@ -207,7 +207,6 @@ class NGen:
 			return ""
 
 	def GetTargetPath(N, target_name, cfg, is_dll):
-		print(f"Getting extension for {cfg.name} .. {target_name}")
 		ext = N.GetExtension(is_dll)
 		#arch_ext = N.GetArchSuffix(arch)
 		return "$outdir_%s/%s_%s%s" % (cfg.name, target_name, cfg.name, ext)
