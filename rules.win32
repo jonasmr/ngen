@@ -20,6 +20,11 @@ rule link_%%
   command = $link /nologo /PDB:$out.pdb $ldflags_%% /OUT:$out $in $libs
   description = LINK $out
 
+rule link_dll_%%
+  command = $link /DLL /nologo /PDB:$out.pdb $ldflags_%% /OUT:$out $in $libs
+  description = LINK $out
+
+
 rule copy_%%
   command = cmd /c copy $in $out
   description = copy $out

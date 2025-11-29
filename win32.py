@@ -107,8 +107,11 @@ def WriteAssignments(N, f):
 	f.write("ml64 = " + N.g_win32ML64Path + "\n\n")
 	f.write("msvc_deps_prefix = Note: including file:\n\n")
 
-def Extension(N):
-	return ".exe"
+def Extension(N, is_dll = False):
+	if is_dll:
+		return ".dll"
+	else:
+		return ".exe"
 
 
 

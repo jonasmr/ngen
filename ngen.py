@@ -55,6 +55,7 @@ class Config:
 		C.copy_files = set()
 		C.copy_files_target = "" 
 		C.paramz = {}
+		C.is_dll = False
 
 		if not is_target:
 			if parent == "":
@@ -199,14 +200,15 @@ class NGen:
 				cfg.target_configs = N.configs_ordered
 
 
-	def GetExtension(N):
+	def GetExtension(N,is_dll):
 		if hasattr(N.active_module, 'Extension'):
-			return N.active_module.Extension(N)
+			return N.active_module.Extension(N, is_dll)
 		else:
 			return ""
 
-	def GetTargetPath(N, target_name, cfg):
-		ext = N.GetExtension()
+	def GetTargetPath(N, target_name, cfg, is_dll):
+		print(f"Getting extension for {cfg.name} .. {target_name}")
+		ext = N.GetExtension(is_dll)
 		#arch_ext = N.GetArchSuffix(arch)
 		return "$outdir_%s/%s_%s%s" % (cfg.name, target_name, cfg.name, ext)
 
@@ -415,7 +417,7 @@ class NGen:
 			print("not adding alias %s :: %s" %(alias, N.active_platform))
 
 	def ParseError(N, error_msg):
-		print("%s:%d ParseError %s" % (N.parse_file, N.parse_line, error_msg));
+		print("%s:%d:0: error %s" % (N.parse_file, N.parse_line, error_msg));
 		exit(1)
 
 
@@ -492,15 +494,15 @@ class NGen:
 							N.ProcessFile(arg, cfg)
 					elif(command == "copy"):
 						if N.PlatformMatch(platform):
-							print("yoyo copy")
 							N.CopyFile(arg, cfg)
-					elif(command == "target"):
+					elif command == "target" or command == "target_dll":
 						assert not is_target
 
 						target_name = arg.strip()
 						if hasattr(N.configs, target_name):
 							pass
 						N.configs[target_name] = Config(target_name, "", True, True)
+						N.configs[target_name].is_dll = command == "target_dll"
 						N.current_target = target_name
 						N.target_active = True
 						N.all_targets.append(target_name)
@@ -764,9 +766,12 @@ rule ngen
 
 
 
-						target_path = N.GetTargetPath(target_name, parent_cfg)
-						ext = N.GetExtension()
-						f.write("build %s: link_%s" % (target_path, suffix))
+						target_path = N.GetTargetPath(target_name, parent_cfg, cfg.is_dll)
+						ext = N.GetExtension(cfg.is_dll)
+						build_cmd = "link_"
+						if cfg.is_dll:
+							build_cmd = "link_dll_"
+						f.write("build %s: %s%s" % (target_path, build_cmd, suffix))
 						for obj in objs:
 							f.write(" " + obj)
 						for obj in parent_cfg.objs:
@@ -801,7 +806,7 @@ rule ngen
 				for parent_cfg in cfg.target_configs:
 					parent_cfg = N.configs[parent_cfg]
 					if parent_cfg.is_active:
-						f.write("build %s_%s: phony %s" % (target_name, parent_cfg.name, N.GetTargetPath(target_name, parent_cfg) ) )
+						f.write("build %s_%s: phony %s" % (target_name, parent_cfg.name, N.GetTargetPath(target_name, parent_cfg, cfg.is_dll) ) )
 						all_targets.append(f"{target_name}_{parent_cfg.name}")
 						if parent_cfg.copy_files_target:
 							f.write(parent_cfg.copy_files_target)
