@@ -815,9 +815,13 @@ rule ngen
 			f.write("\n")
 
 			f.write("# one target all config aliases\n");
-			f.write(f"build {target_name}: phony")
-			for t in all_targets:
-				f.write(f" {t}")
+			for target_name in N.all_targets:
+				f.write(f"build {target_name}: phony")
+				for parent_cfg in cfg.target_configs:
+					parent_cfg = N.configs[parent_cfg]
+					if parent_cfg.is_active:
+						f.write(" %s_%s" % (target_name, parent_cfg.name) )
+				f.write("\n")
 			f.write("\n\n")
 
 
